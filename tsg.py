@@ -21,15 +21,7 @@ class ModelCheckpointMGPU(ModelCheckpoint):
         super().on_epoch_end(epoch, logs)
 
 
-def main(args):
-    model = make_model(args.model, (args.target_size, args.target_size, 3))
-   
-
-    #Creating dataset
-    dataset = TSGSaltDataset(train_data_path=args.train_path, val_data_path=args.val_path, batch_size=args.batch_size, seed=args.seed)
-    train_data_generator = dataset.get_train_data_generator(target_size=(args.target_size, args.target_size))    
-    val_data_generator = dataset.get_val_data_generator(target_size=(args.target_size, args.target_size))
-    
+def main(args):    
     if args.hvd:
         #initialize Horovod.
         hvd.init()
@@ -43,6 +35,12 @@ def main(args):
         if os.path.exists(args.checkpoint_format.format(epoch=try_epoch)):
             resume_from_epoch = try_epoch
             break
+
+    
+    #Create model
+    model = make_model(args.model, (args.target_size, args.target_size, 3))
+    
+    #Resume from epoch
     if args.resume_from_epoch > 0:
         raise ValueError('Not implemented yet')
     else:
@@ -55,9 +53,22 @@ def main(args):
         model.compile(loss='binary_crossentropy',
                        optimizer=opt,
                        metrics=[binary_accuracy]) #hard_dice_coef_ch1, hard_dice_coef])
-
+        
+    #verbose mode
+    if args.hvd and hvd.rank()==0:
+        verbose = 1
+    elif args.hvd == False:
+        verbose = 1
+    else:
+        verbose = 0
+   
+    #Creating dataset
+    dataset = TSGSaltDataset(train_data_path=args.train_path, val_data_path=args.val_path, batch_size=args.batch_size, seed=args.seed)
+    train_data_generator = dataset.get_train_data_generator(target_size=(args.target_size, args.target_size))    
+    val_data_generator = dataset.get_val_data_generator(target_size=(args.target_size, args.target_size))
+    
+    #h5 model
     best_model_file = '{}_best.h5'.format(args.model)
-
     best_model = ModelCheckpointMGPU(model, filepath=best_model_file, monitor='val_loss',
                                      verbose=1,
                                      mode='min',
@@ -99,7 +110,7 @@ def main(args):
                         steps_per_epoch=train_step_size,
                         callbacks=callbacks,
                         epochs=args.epochs,
-                        verbose=args.verbose,
+                        verbose=verbose,
                         workers=4,
                         initial_epoch=resume_from_epoch,
                         validation_data=val_data_generator,
