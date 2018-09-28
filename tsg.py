@@ -22,16 +22,15 @@ class ModelCheckpointMGPU(ModelCheckpoint):
 
 
 def main(args):
-    model = make_model(args.model, (101, 101, 3))
+    model = make_model(args.model, (args.target_size, args.target_size, 3))
    
 
     #Creating dataset
     dataset = TSGSaltDataset(train_data_path=args.train_path, val_data_path=args.val_path, batch_size=args.batch_size, seed=args.seed)
-    train_data_generator = dataset.get_train_data_generator()    
-    val_data_generator = dataset.get_val_data_generator()
+    train_data_generator = dataset.get_train_data_generator(target_size=(args.target_size, args.target_size))    
+    val_data_generator = dataset.get_val_data_generator(target_size=(args.target_size, args.target_size))
     
-    
-    if hvd:
+    if args.hvd:
         #initialize Horovod.
         hvd.init()
         config = tf.ConfigProto()
@@ -81,7 +80,7 @@ def main(args):
             # Horovod: using `lr = 1.0 * hvd.size()` from the very beginning leads to worse final
             # accuracy. Scale the learning rate `lr = 1.0` ---> `lr = 1.0 * hvd.size()` during
             # the first five epochs. See https://arxiv.org/abs/1706.02677 for details.
-            hvd.callbacks.LearningRateWarmupCallback(warmup_epochs=args.warmup_epochs, verbose=verbose)
+            hvd.callbacks.LearningRateWarmupCallback(warmup_epochs=args.warmup_epochs, verbose=True)
         ]
 
         # Horovod: save checkpoints only on the first worker to prevent other workers from corrupting them.
@@ -96,8 +95,6 @@ def main(args):
 
     train_step_size = dataset.train_step_size // hvd.size() if args.hvd else dataset.train_step_size
     val_step_size = dataset.val_step_size // hvd.size() if args.hvd else dataset.val_step_size
-    print(train_step_size)
-    print(val_step_size)
     model.fit_generator(train_data_generator,
                         steps_per_epoch=train_step_size,
                         callbacks=callbacks,
@@ -122,15 +119,16 @@ if __name__== "__main__":
     parser.add_argument('--hvd', type=bool, help='If true it will run in Horovod distributed mode', default=False) 
     parser.add_argument('--model', type=str, help='Name of backbone architecture', default="resnet34")
     parser.add_argument('--log_dir', type=str, help='Directory to save logs', default='./logs')
-    parser.add_argument('--verbose', type=bool, help='Verbose mode')
+    parser.add_argument('--verbose', type=int, help='Verbose mode', default=1)
     parser.add_argument('--epochs', type=int, help='Number of epochs to run the training for', default=90)
-    parser.add_argument('--batch-size', type=int, help='Data batch size', default=32)
+    parser.add_argument('--batch_size', type=int, help='Data batch size', default=32)
     parser.add_argument('--seed', type=int, help='Seed value for data generator', default=1)
     parser.add_argument('--train_path', type=str, help='Path to the training data', default='/home/pkovacs/tsg/data/train')
     parser.add_argument('--val_path', type=str, help='Path to the val data', default='/home/pkovacs/tsg/data/val')
     parser.add_argument('--resume_from_epoch', type=int, help='Epoch to resume from', default=0)
     parser.add_argument('--learning_rate', type=float, help='Learning rate', default=0.0001)
-    parser.add_argument('--checkpoint-format', default='./checkpoint-{epoch}.h5',
-                    help='checkpoint file format')
+    parser.add_argument('--checkpoint-format', default='./checkpoint-{epoch}.h5', help='checkpoint file format')
+    parser.add_argument('--warmup_epochs', type=float, default=5, help='number of warmup epochs')
+    parser.add_argument('--target_size', type=int, default=224, help='Target size for images to scale to')
     args = parser.parse_args()
     main(args)
