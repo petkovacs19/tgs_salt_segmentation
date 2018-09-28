@@ -108,35 +108,6 @@ def create_pyramid_features(C1, C2, C3, C4, C5, feature_size=256):
 
     return P1, P2, P3, P4, P5
 
-def create_pyramid_features_101(C1, C2, C3, C4, C5, feature_size=256):
-    P5 = Conv2D(feature_size, kernel_size=2, strides=1, padding='valid', name='P5', kernel_initializer="he_normal")(C5)
-    P5_upsampled = UpSampling2D(name='P5_upsampled')(P5)
-
-    P4 = Conv2D(feature_size, kernel_size=2, strides=1, padding='valid', name='C4_reduced',
-                kernel_initializer="he_normal")(C4)
-    P4 = Add(name='P4_merged')([P5_upsampled, P4])
-    P4 = Conv2D(feature_size, kernel_size=3, strides=1, padding='same', name='P4', kernel_initializer="he_normal")(P4)
-    P4_upsampled = UpSampling2D(name='P4_upsampled')(P4)
-
-    P3 = Conv2D(feature_size, kernel_size=2, strides=1, padding='valid', name='C3_reduced',
-                kernel_initializer="he_normal")(C3)
-    P3 = Add(name='P3_merged')([P4_upsampled, P3])
-    P3 = Conv2D(feature_size, kernel_size=3, strides=1, padding='same', name='P3', kernel_initializer="he_normal")(P3)
-    P3_upsampled = UpSampling2D(name='P3_upsampled')(P3)
-
-    P2 = Conv2D(feature_size, kernel_size=3, strides=1, padding='valid', name='C2_reduced',
-                kernel_initializer="he_normal")(C2)
-    P2 = Add(name='P2_merged')([P3_upsampled, P2])
-    P2 = Conv2D(feature_size, kernel_size=3, strides=1, padding='same', name='P2', kernel_initializer="he_normal")(P2)
-    P2_upsampled = UpSampling2D(size=(2, 2), name='P2_upsampled')(P2)
-
-    P1 = Conv2D(feature_size, kernel_size=4, strides=1, padding='valid', name='C1_reduced',
-                kernel_initializer="he_normal")(C1)
-    P1 = Add(name='P1_merged')([P2_upsampled, P1])
-    P1 = Conv2D(feature_size, kernel_size=3, strides=1, padding='same', name='P1', kernel_initializer="he_normal")(P1)
-
-    return P1, P2, P3, P4, P5
-
 def prediction_fpn_block(x, name, upsample=None):
     x = conv_relu(x, 128, 3, stride=1, name="predcition_" + name + "_1")
     x = conv_relu(x, 128, 3, stride=1, name="prediction_" + name + "_2")
@@ -147,22 +118,10 @@ def prediction_fpn_block(x, name, upsample=None):
 
 def resnet34_fpn(input_shape, channels=1, activation="relu"):
     img_input = Input(input_shape)
-    resnet_base = ResNet34(img_input,include_top=False)
-    conv1 = resnet_base.get_layer("conv1_relu").output  # First activation
-    conv2 = resnet_base.get_layer("res2b2_relu").output # Intermediate activation
-    conv3 = resnet_base.get_layer("res3b3_relu").output # Intermediate activation
-    conv4 = resnet_base.get_layer("res4b5_relu").output # Intermediate activation
-    conv5 = resnet_base.get_layer("res5b2_relu").output  # Last activation
-    
-    P1, P2, P3, P4, P5 = create_pyramid_features_101(conv1, conv2, conv3, conv4, conv5)
-    x = UpSampling2D()(P1)
-    UP_D1 = AveragePooling2D(pool_size=32, strides=1, padding='valid', name='up_down_1')(x)
-    x = UpSampling2D()(UP_D1)
-    UP_D2 = AveragePooling2D(pool_size=30, strides=1, padding='valid', name='up_down_2')(x)
-    x = Conv2D(channels, (1, 1), name="mask", kernel_initializer="he_normal")(UP_D2)
+    x = Conv2D(channels, (1, 1), name="mask", kernel_initializer="he_normal")(img_input)
     x = Activation(activation)(x)
     return Model(img_input, x)
 
 
 if __name__ == '__main__':
-    resnet101_fpn((256, 256, 3)).summary()
+    resnet34_fpn((101, 101, 3)).summary()

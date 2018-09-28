@@ -1,4 +1,5 @@
 from keras.preprocessing import image
+import numpy as np
 
 class TSGSaltDataset:
     def __init__(self, train_data_path, val_data_path, batch_size=16, seed=1):
@@ -18,6 +19,7 @@ class TSGSaltDataset:
         train_masks_iter = train_masks_gen.flow_from_directory('{}/masks'.format(self.train_path),
                                            batch_size=self.batch_size,
                                            target_size=target_size, color_mode='grayscale', class_mode=None, seed=self.seed)
+        self.train_step_size=len(train_iter)
         return zip(train_iter, train_masks_iter)
     
         
@@ -31,17 +33,17 @@ class TSGSaltDataset:
         val_masks_iter = val_masks_gen.flow_from_directory('{}/masks'.format(self.val_path),
                                          batch_size=self.batch_size,
                                          target_size=target_size, color_mode='grayscale', class_mode=None, seed=self.seed)
-        
+        self.val_step_size=len(val_iter)
         return zip(val_iter, val_masks_iter)
         
         
-    def normalize(image):
+    def normalize(self, image):
         mask = np.where(image > 127,1,0)
         has_salt = 1 if np.sum(mask) > 0 else 0
         return mask
     
 
-    def has_salt_norm(image):
+    def has_salt_norm(self, image):
         mask = np.where(image > 127,1,0)
         has_salt = 1 if np.sum(mask) > 0 else 0
         return has_salt
