@@ -9,6 +9,8 @@ from dataset.tsg_data import TSGSaltDataset
 from keras.metrics import binary_accuracy
 from keras.optimizers import SGD
 from keras.callbacks import LearningRateScheduler, ModelCheckpoint
+from models import losses
+from models import metrics
 
 
 class ModelCheckpointMGPU(ModelCheckpoint):
@@ -50,9 +52,9 @@ def main(args):
         if args.hvd:
             opt = hvd.DistributedOptimizer(opt)
 
-        model.compile(loss='binary_crossentropy',
+        model.compile(loss=losses.binary_crossentropy,
                        optimizer=opt,
-                       metrics=[binary_accuracy]) #hard_dice_coef_ch1, hard_dice_coef])
+                       metrics=[metrics.binary_accuracy]) #hard_dice_coef_ch1, hard_dice_coef])
         
     #verbose mode
     if args.hvd and hvd.rank()==0:
@@ -64,8 +66,8 @@ def main(args):
    
     #Creating dataset
     dataset = TSGSaltDataset(train_data_path=args.train_path, val_data_path=args.val_path, batch_size=args.batch_size, seed=args.seed)
-    train_data_generator = dataset.get_train_data_generator(target_size=(args.target_size, args.target_size))    
-    val_data_generator = dataset.get_val_data_generator(target_size=(args.target_size, args.target_size))
+    train_data_generator = dataset.get_train_data_generator(x_target_size=(args.target_size, args.target_size), mask_target_size=(args.target_size, args.target_size))
+    val_data_generator = dataset.get_val_data_generator(x_target_size=(args.target_size, args.target_size), mask_target_size=(args.target_size, args.target_size))
     
     #h5 model
     best_model_file = '{}_best.h5'.format(args.model)

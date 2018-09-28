@@ -1,0 +1,8 @@
+import keras.backend as K
+from keras.losses import categorical_crossentropy
+from keras import metrics
+import numpy as np
+
+
+def binary_accuracy(y, p):
+    return metrics.binary_accuracy(y, K.round(p))

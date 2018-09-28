@@ -1,6 +1,6 @@
 from keras import Model, Input
 from keras.applications import DenseNet169
-from keras.layers import UpSampling2D, Conv2D, BatchNormalization, Activation, concatenate, Add, Dense, multiply, AveragePooling2D
+from keras.layers import UpSampling2D, Conv2D, BatchNormalization, Activation, concatenate, Add, Dense, multiply, AveragePooling2D, Lambda
 from keras.utils import get_file
 import keras.backend as K
 from resnets import ResNet34
