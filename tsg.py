@@ -40,7 +40,7 @@ def main(args):
 
     
     #Create model
-    model = make_model(args.model, (args.target_size, args.target_size, 3))
+    model = make_model(args.model, (args.target_size, args.target_size, 3), 2)
     
     #Resume from epoch
     if args.resume_from_epoch > 0:
@@ -52,9 +52,9 @@ def main(args):
         if args.hvd:
             opt = hvd.DistributedOptimizer(opt)
 
-        model.compile(loss=losses.binary_crossentropy,
+        model.compile(loss=losses.c_binary_crossentropy,
                        optimizer=opt,
-                       metrics=[metrics.binary_accuracy]) #hard_dice_coef_ch1, hard_dice_coef])
+                       metrics=[]) #hard_dice_coef_ch1, hard_dice_coef])
         
     #verbose mode
     if args.hvd and hvd.rank()==0:
@@ -66,8 +66,10 @@ def main(args):
    
     #Creating dataset
     dataset = TSGSaltDataset(train_data_path=args.train_path, val_data_path=args.val_path, batch_size=args.batch_size, seed=args.seed)
-    train_data_generator = dataset.get_train_data_generator(x_target_size=(args.target_size, args.target_size), mask_target_size=(args.target_size, args.target_size))
-    val_data_generator = dataset.get_val_data_generator(x_target_size=(args.target_size, args.target_size), mask_target_size=(args.target_size, args.target_size))
+    train_data_generator = dataset.get_train_data_generator(x_target_size=(args.target_size, args.target_size),
+                                                            mask_target_size=(args.target_size, args.target_size))
+    val_data_generator = dataset.get_val_data_generator(x_target_size=(args.target_size, args.target_size),
+                                                        mask_target_size=(args.target_size, args.target_size))
     
     #h5 model
     best_model_file = '{}_best.h5'.format(args.model)

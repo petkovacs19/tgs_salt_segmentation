@@ -5,4 +5,4 @@ import numpy as np
 
 
 def binary_accuracy(y, p):
-    return metrics.binary_accuracy(y, K.round(p))
+    return metrics.binary_accuracy(y[...,0],K.round(p[...,0]))
