@@ -4,5 +4,5 @@ from keras import metrics
 import numpy as np
 
 
-def binary_accuracy(y, p):
-    return metrics.binary_accuracy(y[...,0],K.round(p[...,0]))
+def c_binary_accuracy(y, p):
+    return metrics.binary_accuracy(y[...,0],K.round(p[...,1]))

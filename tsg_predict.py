@@ -13,6 +13,8 @@ from keras.layers import AveragePooling2D
 import datetime
 import os
 import argparse
+from skimage.transform import resize
+from skimage import img_as_bool
 
 
 # Default RLenc
@@ -53,35 +55,38 @@ def rle_encoding(img, order='F', format=True):
     else:
         return runs
 
-def generate_submission_file(file_name, model_name):
+def generate_submission_file(file_name, model_name, target_size):
     weight = os.path.join('{}.h5'.format(file_name))
-    model = make_model(model_name, (None, None, 3))
+    model = make_model(model_name, (target_size, target_size, 3), 2)
     model.load_weights(weight)
     
     test_gen = image.ImageDataGenerator(samplewise_center=True,samplewise_std_normalization=True)
-    test_iter = test_gen.flow_from_directory('test/images',
+    test_iter = test_gen.flow_from_directory('data/test/images',
                                          batch_size=1,
-                                         target_size=(256, 256), class_mode=None,seed=1, shuffle = False)
+                                         target_size=(target_size, target_size), class_mode=None,seed=1, shuffle = False)
     filenames = test_iter.filenames
     nb_samples = len(filenames)
 
-    predict = model.predict_generator(test_iter,steps = nb_samples)
+    predictions = model.predict_generator(test_iter,steps = nb_samples, verbose=1)
     lines = []
-    for index,prediction in enumerate(tqdm(predict[0])):
-        prediction[prediction<0] = 0
-        rounded = np.round(prediction[:,:,0])
-        rle = rle_encoding(rounded)
+    for index,prediction in enumerate(tqdm(predictions)):
+        prediction = np.round(prediction[...,1])
+        bool_mask = np.where(prediction==1, True, False)
+        bool_mask_res = img_as_bool(resize(bool_mask, (101, 101)))
+        prediction = np.where(bool_mask_res == True, 1, 0)
+        rle = rle_encoding(prediction)
         lines.append("{},{}".format(filenames[index][5:][:-4], rle))
     submission = "id,rle_mask\n" + "\n".join(lines)
-    file_path = 'submission_{}_{}'.format(file_name,datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S"))
+    file_path = 'submission_{}_{}.csv'.format(file_name,datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S"))
     with open(file_path, "w") as f:
         f.write(submission)
     return file_path
         
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = 'This is to generate submission file for the predictions')
-    parser.add_argument('--file_name', help='path to the best model')
-    parser.add_argument('--model_name', help='model to load')
+    parser.add_argument('--file_name', type=str, help='path to the best model')
+    parser.add_argument('--model_name', type=str, help='model to load')
+    parser.add_argument('--target_size', type=int, help='target size')
     args = parser.parse_args()
-    submission_file_path = generate_submission_file(args.file_name,args.model_name)
+    submission_file_path = generate_submission_file(args.file_name, args.model_name, args.target_size)
     print("Submission saved at {}".format(submission_file_path))

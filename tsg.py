@@ -54,7 +54,7 @@ def main(args):
 
         model.compile(loss=losses.c_binary_crossentropy,
                        optimizer=opt,
-                       metrics=[]) #hard_dice_coef_ch1, hard_dice_coef])
+                       metrics=[metrics.c_binary_accuracy]) #hard_dice_coef_ch1, hard_dice_coef])
         
     #verbose mode
     if args.hvd and hvd.rank()==0:
@@ -141,7 +141,7 @@ if __name__== "__main__":
     parser.add_argument('--train_path', type=str, help='Path to the training data', default='/home/pkovacs/tsg/data/train')
     parser.add_argument('--val_path', type=str, help='Path to the val data', default='/home/pkovacs/tsg/data/val')
     parser.add_argument('--resume_from_epoch', type=int, help='Epoch to resume from', default=0)
-    parser.add_argument('--learning_rate', type=float, help='Learning rate', default=0.0001)
+    parser.add_argument('--learning_rate', type=float, help='Learning rate', default=0.0005)
     parser.add_argument('--checkpoint-format', default='./checkpoint-{epoch}.h5', help='checkpoint file format')
     parser.add_argument('--warmup_epochs', type=float, default=5, help='number of warmup epochs')
     parser.add_argument('--target_size', type=int, default=224, help='Target size for images to scale to')
