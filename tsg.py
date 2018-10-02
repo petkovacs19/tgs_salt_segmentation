@@ -55,9 +55,15 @@ def main(args):
         if args.hvd:
             opt = hvd.DistributedOptimizer(opt)
 
-        model.compile(loss='binary_crossentropy',
-                       optimizer=opt,
-                       metrics=[metrics.my_iou_metric]) #hard_dice_coef_ch1, hard_dice_coef])
+        model.compile(loss = { 'mask':'binary_crossentropy',
+                               'has_salt': losses.c_binary_crossentropy
+                            },
+                      loss_weights = {
+                          'mask':0.5,
+                          'has_salt':0.5
+                      },
+                      optimizer=opt,
+                      metrics=[metrics.my_iou_metric]) #hard_dice_coef_ch1, hard_dice_coef])
         
     #verbose mode
     if args.hvd and hvd.rank()==0:

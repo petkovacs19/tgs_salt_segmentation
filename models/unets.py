@@ -48,6 +48,25 @@ def residual_block(blockInput, num_filters=16, batch_activate = False):
         x = batch_norm_activation(x)
     return x
 
+
+
+def binary_classifier_layers(input, name):
+    pool4 = MaxPooling2D((6, 6))(input)
+    flatten = Flatten()(pool4)
+    d  = keras.layers.Dense(128)(flatten)
+    a = Activation('relu')(d)
+    d  = keras.layers.Dense(64)(a)
+    a = Activation('relu')(d)
+    d  = keras.layers.Dense(32)(a)
+    a = Activation('relu')(ad)
+    d  = keras.layers.Dense(16)(a)
+    a = Activation('relu')(d)
+    d  = keras.layers.Dense(8)(a)
+    a = Activation('relu')(d)
+    d  = keras.layers.Dense(1)(a)
+    a = Activation('relu', name=name)(d)
+    return a
+
 # Build model
 def simple_resnet(input_shape, start_neurons, DropoutRatio = 0.5):
     input_layer = Input(input_shape)
@@ -83,6 +102,8 @@ def simple_resnet(input_shape, start_neurons, DropoutRatio = 0.5):
     convm = Conv2D(start_neurons * 16, (3, 3), activation=None, padding="same")(pool4)
     convm = residual_block(convm,start_neurons * 16)
     convm = residual_block(convm,start_neurons * 16, True)
+    
+    has_salt = binary_classifier_layers(convm, name='has_salt')
     
     # 6 -> 12
     deconv4 = Conv2DTranspose(start_neurons * 8, (3, 3), strides=(2, 2), padding="same")(convm)
@@ -125,9 +146,9 @@ def simple_resnet(input_shape, start_neurons, DropoutRatio = 0.5):
     #uconv1 = Dropout(DropoutRatio/2)(uconv1)
     #output_layer = Conv2D(1, (1,1), padding="same", activation="sigmoid")(uconv1)
     output_layer_noActi = Conv2D(1, (1,1), padding="same", activation=None)(uconv1)
-    output_layer =  Activation('sigmoid')(output_layer_noActi)
+    output_layer =  Activation('sigmoid', name='mask')(output_layer_noActi)
     
-    return Model(input_layer, output_layer)
+    return Model(input_layer, outputs=[output_layer,has_salt])
 
 
 
