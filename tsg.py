@@ -115,7 +115,7 @@ def main(args):
     model.fit_generator(train_data_generator,
                         steps_per_epoch=train_step_size,
                         callbacks=callbacks,
-                        epochs=150,
+                        epochs=50,
                         verbose=verbose,
                         workers=4,
                         initial_epoch=resume_from_epoch,
@@ -145,7 +145,7 @@ def main(args):
     model.fit_generator(train_data_generator,
                         steps_per_epoch=train_step_size,
                         callbacks=[early_stopping, model_checkpoint, reduce_lr],
-                        epochs=150,
+                        epochs=50,
                         verbose=verbose,
                         workers=4,
                         validation_data=val_data_generator,
@@ -156,8 +156,6 @@ def main(args):
 #         score = hvd.allreduce(model.evaluate_generator(val_data_generator, len(test_iter), workers=4))
 #     else:
 #         model.evaluate_generator(val_data_generator, len(test_iter), workers=4)
-    print('Test loss:', score[0])
-    print('Test accuracy:', score[1])
 
 
 if __name__== "__main__":
