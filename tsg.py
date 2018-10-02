@@ -7,10 +7,12 @@ from keras import backend as K
 from models.model_factory import make_model
 from dataset.tsg_data import TSGSaltDataset
 from keras.metrics import binary_accuracy
-from keras.optimizers import SGD
-from keras.callbacks import LearningRateScheduler, ModelCheckpoint
+from keras.optimizers import SGD, Adam
+from keras.callbacks import LearningRateScheduler, ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
 from models import losses
 from models import metrics
+from models.metrics import my_iou_metric_2
+from keras.models import Model, load_model, save_model
 
 
 class ModelCheckpointMGPU(ModelCheckpoint):
@@ -23,7 +25,8 @@ class ModelCheckpointMGPU(ModelCheckpoint):
         super().on_epoch_end(epoch, logs)
 
 
-def main(args):    
+def main(args):   
+    save_model_name = 'best_resnet_34.model'
     if args.hvd:
         #initialize Horovod.
         hvd.init()
@@ -40,21 +43,21 @@ def main(args):
 
     
     #Create model
-    model = make_model(args.model, (args.target_size, args.target_size, 3), 2)
+    model = make_model(args.model, (args.target_size, args.target_size, 3), 16)
     
     #Resume from epoch
     if args.resume_from_epoch > 0:
         raise ValueError('Not implemented yet')
     else:
         size = hvd.size() if args.hvd else 1
-        opt = SGD(lr=args.learning_rate * size, momentum=0.9, nesterov=True)
+        opt = Adam(lr=args.learning_rate * size)
         #Wrap optimizer in distributed horovod wrapper
         if args.hvd:
             opt = hvd.DistributedOptimizer(opt)
 
-        model.compile(loss=losses.c_binary_crossentropy,
+        model.compile(loss='binary_crossentropy',
                        optimizer=opt,
-                       metrics=[metrics.c_binary_accuracy]) #hard_dice_coef_ch1, hard_dice_coef])
+                       metrics=[metrics.my_iou_metric]) #hard_dice_coef_ch1, hard_dice_coef])
         
     #verbose mode
     if args.hvd and hvd.rank()==0:
@@ -73,12 +76,10 @@ def main(args):
     
     #h5 model
     best_model_file = '{}_best.h5'.format(args.model)
-    best_model = ModelCheckpointMGPU(model, filepath=best_model_file, monitor='val_loss',
-                                     verbose=1,
-                                     mode='min',
-                                     period=1,
-                                     save_best_only=True,
-                                     save_weights_only=True)
+    best_model = ModelCheckpoint(save_model_name,monitor='my_iou_metric', 
+                                   mode = 'max', save_best_only=True, verbose=1)
+    reduce_lr = ReduceLROnPlateau(monitor='my_iou_metric', mode = 'max',factor=0.5, patience=5, min_lr=0.0001, verbose=1)
+    
     if args.hvd:
         callbacks = [
             # Horovod: broadcast initial variable states from rank 0 to all other processes.
@@ -105,7 +106,8 @@ def main(args):
     else:
         callbacks = [
             keras.callbacks.TensorBoard(args.log_dir),
-            best_model
+            best_model,
+            reduce_lr
         ]
 
     train_step_size = dataset.train_step_size // hvd.size() if args.hvd else dataset.train_step_size
@@ -113,18 +115,47 @@ def main(args):
     model.fit_generator(train_data_generator,
                         steps_per_epoch=train_step_size,
                         callbacks=callbacks,
-                        epochs=args.epochs,
+                        epochs=150,
                         verbose=verbose,
                         workers=4,
                         initial_epoch=resume_from_epoch,
                         validation_data=val_data_generator,
                         validation_steps=val_step_size)
 
+    
+    ##EXTENSION
+    model1 = load_model(save_model_name,custom_objects={'my_iou_metric': metrics.my_iou_metric})
+    # remove layter activation layer and use losvasz loss
+    input_x = model1.layers[0].input
+
+    output_layer = model1.layers[-1].input
+    model = Model(input_x, output_layer)
+    c = Adam(lr = 0.01)
+
+    # lovasz_loss need input range (-∞，+∞), so cancel the last "sigmoid" activation  
+    # Then the default threshod for pixel prediction is 0 instead of 0.5, as in my_iou_metric_2.
+    model.compile(loss=losses.lovasz_loss, optimizer=c, metrics=[metrics.my_iou_metric_2])
+
+    
+    early_stopping = EarlyStopping(monitor='val_my_iou_metric_2', mode = 'max',patience=20, verbose=1)
+    model_checkpoint = ModelCheckpoint(save_model_name,monitor='val_my_iou_metric_2', 
+                                       mode = 'max', save_best_only=True, verbose=1)
+    reduce_lr = ReduceLROnPlateau(monitor='val_my_iou_metric_2', mode = 'max',factor=0.5, patience=5, min_lr=0.0001, verbose=1)
+    
+    model.fit_generator(train_data_generator,
+                        steps_per_epoch=train_step_size,
+                        callbacks=[early_stopping, model_checkpoint, reduce_lr],
+                        epochs=150,
+                        verbose=verbose,
+                        workers=4,
+                        validation_data=val_data_generator,
+                        validation_steps=val_step_size)
+    ###EXTENSION over
     # Evaluate the model on the validation data set.
-    if hvd:
-        score = hvd.allreduce(model.evaluate_generator(val_data_generator, len(test_iter), workers=4))
-    else:
-        model.evaluate_generator(val_data_generator, len(test_iter), workers=4)
+#     if hvd:
+#         score = hvd.allreduce(model.evaluate_generator(val_data_generator, len(test_iter), workers=4))
+#     else:
+#         model.evaluate_generator(val_data_generator, len(test_iter), workers=4)
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
 
@@ -132,7 +163,7 @@ def main(args):
 if __name__== "__main__":
     parser = argparse.ArgumentParser(description = 'TSGSaltModel')
     parser.add_argument('--hvd', type=bool, help='If true it will run in Horovod distributed mode', default=False) 
-    parser.add_argument('--model', type=str, help='Name of backbone architecture', default="resnet34")
+    parser.add_argument('--model', type=str, help='Name of backbone architecture', default="simple_resnet")
     parser.add_argument('--log_dir', type=str, help='Directory to save logs', default='./logs')
     parser.add_argument('--verbose', type=int, help='Verbose mode', default=1)
     parser.add_argument('--epochs', type=int, help='Number of epochs to run the training for', default=90)
@@ -141,9 +172,9 @@ if __name__== "__main__":
     parser.add_argument('--train_path', type=str, help='Path to the training data', default='/home/pkovacs/tsg/data/train')
     parser.add_argument('--val_path', type=str, help='Path to the val data', default='/home/pkovacs/tsg/data/val')
     parser.add_argument('--resume_from_epoch', type=int, help='Epoch to resume from', default=0)
-    parser.add_argument('--learning_rate', type=float, help='Learning rate', default=0.0005)
+    parser.add_argument('--learning_rate', type=float, help='Learning rate', default=0.01)
     parser.add_argument('--checkpoint-format', default='./checkpoint-{epoch}.h5', help='checkpoint file format')
     parser.add_argument('--warmup_epochs', type=float, default=5, help='number of warmup epochs')
-    parser.add_argument('--target_size', type=int, default=224, help='Target size for images to scale to')
+    parser.add_argument('--target_size', type=int, default=101, help='Target size for images to scale to')
     args = parser.parse_args()
     main(args)

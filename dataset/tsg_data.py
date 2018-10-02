@@ -9,13 +9,18 @@ class TSGSaltDataset:
         self.batch_size = batch_size
         self.seed = seed
         
+        self.augment_args = dict(
+            horizontal_flip=True,
+            vertical_flip=True
+        )
+        
     def get_train_data_generator(self, x_target_size, mask_target_size):
-        train_gen = image.ImageDataGenerator(samplewise_center=True, samplewise_std_normalization=True)
+        train_gen = image.ImageDataGenerator(**self.augment_args, samplewise_center=True, samplewise_std_normalization=True)
         train_iter = train_gen.flow_from_directory('{}/images'.format(self.train_path),
                                            batch_size=self.batch_size,
                                            target_size=x_target_size, class_mode=None, seed=self.seed)
         
-        train_masks_gen = image.ImageDataGenerator(preprocessing_function=self.normalize)
+        train_masks_gen = image.ImageDataGenerator(**self.augment_args, preprocessing_function=self.normalize)
         train_masks_iter = train_masks_gen.flow_from_directory('{}/masks'.format(self.train_path),
                                            batch_size=self.batch_size,
                                            target_size=mask_target_size, color_mode='grayscale', class_mode=None, seed=self.seed)
@@ -24,8 +29,8 @@ class TSGSaltDataset:
     
         
     def get_val_data_generator(self, x_target_size, mask_target_size):
-        val_gen = image.ImageDataGenerator(samplewise_center=True,samplewise_std_normalization=True)
-        val_masks_gen = image.ImageDataGenerator(preprocessing_function=self.normalize)
+        val_gen = image.ImageDataGenerator(**self.augment_args,samplewise_center=True,samplewise_std_normalization=True)
+        val_masks_gen = image.ImageDataGenerator(**self.augment_args,preprocessing_function=self.normalize)
 
         val_iter = val_gen.flow_from_directory('{}/images'.format(self.val_path),
                                          batch_size=self.batch_size,
