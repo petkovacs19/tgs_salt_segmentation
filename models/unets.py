@@ -1,6 +1,6 @@
 from keras import Model, Input
 from keras.applications import DenseNet169
-from keras.layers import UpSampling2D, Conv2D, Conv2DTranspose, BatchNormalization, Activation, concatenate, Add, Dense, multiply, MaxPooling2D, Dropout, AveragePooling2D, Lambda
+from keras.layers import Flatten, UpSampling2D, Conv2D, Conv2DTranspose, BatchNormalization, Activation, concatenate, Add, Dense, multiply, MaxPooling2D, Dropout, AveragePooling2D, Lambda
 from keras.utils import get_file
 import keras.backend as K
 from resnets import ResNet34
@@ -53,17 +53,17 @@ def residual_block(blockInput, num_filters=16, batch_activate = False):
 def binary_classifier_layers(input, name):
     pool4 = MaxPooling2D((6, 6))(input)
     flatten = Flatten()(pool4)
-    d  = keras.layers.Dense(128)(flatten)
+    d  = Dense(128)(flatten)
     a = Activation('relu')(d)
-    d  = keras.layers.Dense(64)(a)
+    d  = Dense(64)(a)
     a = Activation('relu')(d)
-    d  = keras.layers.Dense(32)(a)
-    a = Activation('relu')(ad)
-    d  = keras.layers.Dense(16)(a)
+    d  = Dense(32)(a)
     a = Activation('relu')(d)
-    d  = keras.layers.Dense(8)(a)
+    d  = Dense(16)(a)
     a = Activation('relu')(d)
-    d  = keras.layers.Dense(1)(a)
+    d  = Dense(8)(a)
+    a = Activation('relu')(d)
+    d  = Dense(1)(a)
     a = Activation('relu', name=name)(d)
     return a
 

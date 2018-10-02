@@ -14,41 +14,43 @@ class TSGSaltDataset:
             vertical_flip=True
         )
         
-    def get_train_data_generator(self, x_target_size, mask_target_size):
-        train_gen = image.ImageDataGenerator(**self.augment_args, 
+    def get_data_generator(self, x_target_size, mask_target_size, source):
+        if source == 'train':
+            source_path = self.train_path
+        elif source == 'test':
+            source_path = self.val_path
+        else:
+            raise ValueError('No such type')
+        x_gen = image.ImageDataGenerator(**self.augment_args, 
                                              samplewise_center=True,
                                              samplewise_std_normalization=True)
-        train_iter = train_gen.flow_from_directory('{}/images'.format(self.train_path),
+        x_iter = x_gen.flow_from_directory('{}/images'.format(source_path),
                                            batch_size=self.batch_size,
                                            target_size=x_target_size, color_mode='grayscale', class_mode=None, seed=self.seed)
         
-        train_masks_gen = image.ImageDataGenerator(**self.augment_args, preprocessing_function=self.normalize)
-        train_masks_iter = train_masks_gen.flow_from_directory('{}/masks'.format(self.train_path),
+        masks_gen = image.ImageDataGenerator(**self.augment_args, preprocessing_function=self.normalize)
+        masks_iter = masks_gen.flow_from_directory('{}/masks'.format(source_path),
                                            batch_size=self.batch_size,
                                            target_size=mask_target_size, color_mode='grayscale', class_mode=None, seed=self.seed)
-        self.train_step_size=len(train_iter)
-        return zip(train_iter, train_masks_iter)
-    
         
-    def get_val_data_generator(self, x_target_size, mask_target_size):
-        val_gen = image.ImageDataGenerator(**self.augment_args,
-                                           samplewise_center=True,
-                                           samplewise_std_normalization=True)
-        val_masks_gen = image.ImageDataGenerator(**self.augment_args,preprocessing_function=self.normalize)
-
-        val_iter = val_gen.flow_from_directory('{}/images'.format(self.val_path),
-                                         batch_size=self.batch_size,
-                                         target_size=x_target_size, color_mode='grayscale', class_mode=None,seed=self.seed)
-        val_masks_iter = val_masks_gen.flow_from_directory('{}/masks'.format(self.val_path),
-                                         batch_size=self.batch_size,
-                                         target_size=mask_target_size, color_mode='grayscale', class_mode=None, seed=self.seed)
-        self.val_step_size=len(val_iter)
-        return zip(val_iter, val_masks_iter)
+        class_gen = image.ImageDataGenerator(**self.augment_args, preprocessing_function=self.normalize)
+        class_iter = masks_gen.flow_from_directory('{}/masks'.format(source_path),
+                                           batch_size=self.batch_size,
+                                           target_size=mask_target_size, color_mode='grayscale', class_mode=None, seed=self.seed)
+        if source == 'train':
+            self.train_step_size=len(x_iter)
+        else:
+            self.val_step_size=len(x_iter)
+        
+        return zip(x_iter, masks_iter)
         
         
     def normalize(self, image):
         mask = np.where(image > 127,1,0)
         return mask
+    
+    def has_salt(self, image):
+        return np.sum(image) > 0
     
     def normalize_range(self, image):
         return image/256
