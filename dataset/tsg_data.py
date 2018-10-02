@@ -15,10 +15,12 @@ class TSGSaltDataset:
         )
         
     def get_train_data_generator(self, x_target_size, mask_target_size):
-        train_gen = image.ImageDataGenerator(**self.augment_args, samplewise_center=True, samplewise_std_normalization=True)
+        train_gen = image.ImageDataGenerator(**self.augment_args, 
+                                             samplewise_center=True,
+                                             samplewise_std_normalization=True)
         train_iter = train_gen.flow_from_directory('{}/images'.format(self.train_path),
                                            batch_size=self.batch_size,
-                                           target_size=x_target_size, class_mode=None, seed=self.seed)
+                                           target_size=x_target_size, color_mode='grayscale', class_mode=None, seed=self.seed)
         
         train_masks_gen = image.ImageDataGenerator(**self.augment_args, preprocessing_function=self.normalize)
         train_masks_iter = train_masks_gen.flow_from_directory('{}/masks'.format(self.train_path),
@@ -29,12 +31,14 @@ class TSGSaltDataset:
     
         
     def get_val_data_generator(self, x_target_size, mask_target_size):
-        val_gen = image.ImageDataGenerator(**self.augment_args,samplewise_center=True,samplewise_std_normalization=True)
+        val_gen = image.ImageDataGenerator(**self.augment_args,
+                                           samplewise_center=True,
+                                           samplewise_std_normalization=True)
         val_masks_gen = image.ImageDataGenerator(**self.augment_args,preprocessing_function=self.normalize)
 
         val_iter = val_gen.flow_from_directory('{}/images'.format(self.val_path),
                                          batch_size=self.batch_size,
-                                         target_size=x_target_size, class_mode=None,seed=self.seed)
+                                         target_size=x_target_size, color_mode='grayscale', class_mode=None,seed=self.seed)
         val_masks_iter = val_masks_gen.flow_from_directory('{}/masks'.format(self.val_path),
                                          batch_size=self.batch_size,
                                          target_size=mask_target_size, color_mode='grayscale', class_mode=None, seed=self.seed)
@@ -45,6 +49,9 @@ class TSGSaltDataset:
     def normalize(self, image):
         mask = np.where(image > 127,1,0)
         return mask
+    
+    def normalize_range(self, image):
+        return image/256
     
     def has_salt_norm(self, image):
         mask = np.where(image > 127,1,0)

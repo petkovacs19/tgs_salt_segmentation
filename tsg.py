@@ -43,7 +43,7 @@ def main(args):
 
     
     #Create model
-    model = make_model(args.model, (args.target_size, args.target_size, 3), 16)
+    model = make_model(args.model, (args.target_size, args.target_size, 1), 16)
     
     #Resume from epoch
     if args.resume_from_epoch > 0:
