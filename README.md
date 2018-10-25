@@ -1,4 +1,4 @@
-# TSG Salt Segmentation competition
+# TGS Salt Segmentation competition
 
 This is a project containing source code to the TSG image segmentation competition.
 
