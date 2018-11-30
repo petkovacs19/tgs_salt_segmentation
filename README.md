@@ -2,6 +2,7 @@
 
 This is a project containing source code to the [TGS](https://www.kaggle.com/c/tgs-salt-identification-challenge) image segmentation competition.
 
+(!I misspelled TGS, and only realized two months after. You will see TSG at many place in the code.
 
 ### Installing
 
