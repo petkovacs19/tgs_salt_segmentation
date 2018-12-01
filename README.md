@@ -28,8 +28,6 @@ python tsg.py  --train_path=/home/pkovacs/tsg/data/train --val_path=/home/pkovac
 
 ### Generate predictions
 
-Explain what these tests test and why
-
 ```
 python tsg_predict.py --file_name='path_to_model' --model_name='model_to_load-see_models/models_factory.py'
 --target_size=shape_of_input_images
