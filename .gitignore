@@ -4,3 +4,4 @@ logs/*
 .ipynb_checkpoints/
 *.h5
 Test.ipynb
+test_notebooks/*
