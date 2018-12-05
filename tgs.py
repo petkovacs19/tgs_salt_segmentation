@@ -5,7 +5,7 @@ import keras
 import os
 from keras import backend as K
 from models.model_factory import make_model
-from dataset.tsg_data import TSGSaltDataset
+from dataset.tgs_data import TGSDataset
 from keras.metrics import binary_accuracy
 from keras.optimizers import SGD
 from keras.callbacks import LearningRateScheduler, ModelCheckpoint
@@ -65,11 +65,11 @@ def main(args):
         verbose = 0
    
     #Creating dataset
-    dataset = TSGSaltDataset(train_data_path=args.train_path, val_data_path=args.val_path, batch_size=args.batch_size, seed=args.seed)
-    train_data_generator = dataset.get_train_data_generator(x_target_size=(args.target_size, args.target_size),
-                                                            mask_target_size=(args.target_size, args.target_size))
-    val_data_generator = dataset.get_val_data_generator(x_target_size=(args.target_size, args.target_size),
-                                                        mask_target_size=(args.target_size, args.target_size))
+    dataset = TGSDataset(train_data_path=args.train_path, val_data_path=args.val_path, batch_size=args.batch_size, seed=args.seed)
+    input_shape = (args.target_size, args.target_size)
+    mask_shape = (args.target_size, args.target_size)
+    train_data_generator = dataset.get_train_data_generator(input_size=input_shape, mask_size=mask_shape)
+    val_data_generator = dataset.get_val_data_generator(input_size=input_shape, mask_size=mask_shape)
     
     #h5 model
     best_model_file = '{}_best.h5'.format(args.model)
@@ -130,7 +130,7 @@ def main(args):
 
 
 if __name__== "__main__":
-    parser = argparse.ArgumentParser(description = 'TSGSaltModel')
+    parser = argparse.ArgumentParser(description = 'TGSSaltModel')
     parser.add_argument('--hvd', type=bool, help='If true it will run in Horovod distributed mode', default=False) 
     parser.add_argument('--model', type=str, help='Name of backbone architecture', default="resnet34")
     parser.add_argument('--log_dir', type=str, help='Directory to save logs', default='./logs')

@@ -2,7 +2,7 @@
 
 This is a project containing source code to the [TGS](https://www.kaggle.com/c/tgs-salt-identification-challenge) image segmentation competition.
 
-(!I misspelled TGS, and only realized two months after. You will see TSG at many places in the code and in file names.
+(!I misspelled TGS, and only realized two months after. You will see TSG at many places in the code and in file names.)
 
 ### Installing
 
@@ -23,7 +23,6 @@ mpirun -np 3 -bind-to none -map-by slot -x NCCL_DEBUG=INFO -x LD_LIBRARY_PATH -x
 ```
 python tsg.py  --train_path=/home/pkovacs/tsg/data/train --val_path=/home/pkovacs/tsg/data/val --model=resnet34 --batch_size=16 --epochs=90
 ```
-
 
 
 ### Generate predictions
