@@ -16,6 +16,12 @@ Horovod uses [MPI](https://www.open-mpi.org/) - Message Passing Interface under 
 mpirun -np 3 -bind-to none -map-by slot -x NCCL_DEBUG=INFO -x LD_LIBRARY_PATH -x PATH -mca pml ob1 -mca btl ^openib /home/pkovacs/anaconda3/envs/exp/bin/python tsg.py --hvd=True --train_path=/home/pkovacs/tsg/data/train --val_path=/home/pkovacs/tsg/data/val --model=resnet34 --batch_size=16 --epochs=90
 ```
 
+or alternatively run (set the path of your python env in the script file)
+
+```
+./train_multi_gpu.sh {number_of_gpus}
+```
+
 ### Run in single GPU mode
 
 --hvd arg is false by default, so to run in single GPU way, just remove --hvd=True 
