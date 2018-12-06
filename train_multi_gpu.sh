@@ -18,4 +18,4 @@ echo "EPOCH: $epochs"
 echo "BATCH SIZE: $batch_size"
 echo "GPUs": "$1"
 
-mpirun -np $num_of_gpus -bind-to none -map-by slot -x NCCL_DEBUG=INFO -x LD_LIBRARY_PATH -x PATH -mca pml ob1 -mca btl ^openib $python_env tgs.py --hvd=True --train_path=$train_path --val_path=$val_path --model=resnet34 --batch_size=$batch_size --epochs=$epochs
+mpirun -np $num_of_gpus -bind-to none -map-by slot -x NCCL_DEBUG=INFO -x LD_LIBRARY_PATH -x PATH -mca pml ob1 -mca btl ^openib $python_env tgs_train.py --hvd=True --train_path=$train_path --val_path=$val_path --model=resnet34 --batch_size=$batch_size --epochs=$epochs

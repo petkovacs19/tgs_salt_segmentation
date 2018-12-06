@@ -5,3 +5,5 @@ logs/*
 *.h5
 Test.ipynb
 test_notebooks/*
+submissions/*
+weights/*

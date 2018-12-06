@@ -72,7 +72,7 @@ def main(args):
     val_data_generator = dataset.get_val_data_generator(input_size=input_shape, mask_size=mask_shape)
     
     #h5 model
-    best_model_file = '{}_best.h5'.format(args.model)
+    best_model_file = 'weights/{}_best.h5'.format(args.model)
     best_model = ModelCheckpointMGPU(model, filepath=best_model_file, monitor='val_loss',
                                      verbose=1,
                                      mode='min',
@@ -146,4 +146,6 @@ if __name__== "__main__":
     parser.add_argument('--warmup_epochs', type=float, default=5, help='number of warmup epochs')
     parser.add_argument('--target_size', type=int, default=224, help='Target size for images to scale to')
     args = parser.parse_args()
+    if not os.path.exists('weights'):
+        os.makedirs('weights')
     main(args)
