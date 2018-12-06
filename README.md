@@ -34,6 +34,8 @@ python tgs_train.py --model=resnet34 --batch_size=16 --epochs=90
 
 ### Generate predictions
 
+Submission file will be saved in the submission folder in a 'submission_weightFileName_dateTime.csv' file
+
 ```
 python tgs_predict.py
 ```
