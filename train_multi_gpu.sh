@@ -1,4 +1,5 @@
 #!/bin/bash
+# This will run training in a distributed ring allReduce fashion using horovod See: https://eng.uber.com/horovod/
 if [ $# -eq 0 ]
   then
     echo "Specify the number of gpus you want to run on"
