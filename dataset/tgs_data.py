@@ -1,5 +1,5 @@
 from keras.preprocessing import image
-from sklearn.model_selection import train_test_split, StratifiedKFold
+from sklearn.model_selection import StratifiedKFold
 import numpy as np
 import os
 
@@ -61,7 +61,8 @@ class TGSDatasetPreprocessor:
         self.data_path = data_path
         self.seed = 1
         
-    def gen_k_fold(self, num_of_folds):
+        
+    def gen_k_folds(self, num_of_folds):
         """
         Generates folds and saves them to fold folder
         num_of_folds - int - number of folds to generate
@@ -80,9 +81,9 @@ class TGSDatasetPreprocessor:
                                                        class_mode=None,
                                                        seed=self.seed)
         
-        filenames = x_iter.filenames
-        file_classes = [np.squeeze(y_masks_iter.next())[0][0] for l in filenames]
-        return StratifiedKFold(n_splits=num_of_folds).split(filenames, file_classes)
+        self.filenames = x_iter.filenames
+        file_classes = [np.squeeze(y_masks_iter.next())[0][0] for l in self.filenames]
+        return StratifiedKFold(n_splits=num_of_folds, shuffle=True, random_state=self.seed).split(self.filenames, file_classes)
     
     def coverage_class(self, image):
         """
