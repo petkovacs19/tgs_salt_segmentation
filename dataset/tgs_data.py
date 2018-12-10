@@ -1,7 +1,9 @@
 from keras.preprocessing import image
 from sklearn.model_selection import StratifiedKFold
 import numpy as np
+import pandas as pd
 import os
+
 
 class TGSDataset:
     def __init__(self, data_path, batch_size=16, seed=1, kfold=1):
@@ -10,38 +12,26 @@ class TGSDataset:
         self.batch_size = batch_size
         self.seed = seed
         
-    def get_train_data_generator(self, input_size, mask_size):
+    def get_data_generator(self, dataframe, input_size, mask_size, validation=False):
         """
         input_size - tuple(int,int) width,height of input to the model
         mask_size - tuple(int,int) expected width,height of output mask from the model
         """
-        return self.__get_data_generator(input_size, mask_size)
-    
-        
-    def get_val_data_generator(self, input_size, mask_size):
-        return self.__get_data_generator(input_size, mask_size, True)
-        
-    def __get_data_generator(self, input_size, mask_size, validation=False):
-        tpe = 'val' if validation else 'train'
         x_gen = image.ImageDataGenerator(samplewise_center=True, samplewise_std_normalization=True)
-        x_iter = x_gen.flow_from_directory('{}/{}/images'.format(self.data_path, tpe),
+        x_iter = x_gen.flow_from_dataframe(dataframe, '{}/images/salt'.format(self.data_path), x_col='file', y_col='class',
                                            batch_size=self.batch_size,
                                            target_size=input_size,
                                            class_mode=None,
                                            seed=self.seed)
         
         y_masks_gen = image.ImageDataGenerator(preprocessing_function=self.normalize)
-        y_masks_iter = y_masks_gen.flow_from_directory('{}/{}/masks'.format(self.data_path, tpe),
+        y_masks_iter = y_masks_gen.flow_from_dataframe(dataframe, '{}/masks/salt'.format(self.data_path), x_col='file', y_col='class',
                                                        batch_size=self.batch_size,
                                                        target_size=mask_size,
                                                        color_mode='grayscale',
                                                        class_mode=None,
                                                        seed=self.seed)
-        if validation:
-            self.val_step_size=len(x_iter)
-        else:
-            self.train_step_size=len(x_iter)
-        return zip(x_iter, y_masks_iter)
+        return self.generate_data_generator(x_iter, y_masks_iter)
            
     def normalize(self, image):
         mask = np.where(image > 127,1,0)
@@ -50,7 +40,13 @@ class TGSDataset:
     def has_salt_norm(self, image):
         mask = np.where(image > 127,1,0)
         has_salt = 1 if np.sum(mask) > 0 else 0
-        return has_salt    
+        return has_salt  
+    
+    def generate_data_generator(self, x_generator, y_generator):
+        while True:
+                x = x_generator.next()
+                mask = y_generator.next()
+                yield x, mask
     
     
 class TGSDatasetPreprocessor:
@@ -62,10 +58,8 @@ class TGSDatasetPreprocessor:
         self.seed = 1
         
         
-    def gen_k_folds(self, num_of_folds):
+    def get_data_with_features(self):
         """
-        Generates folds and saves them to fold folder
-        num_of_folds - int - number of folds to generate
         """
         
         x_gen = image.ImageDataGenerator(samplewise_center=True,samplewise_std_normalization=True)
@@ -81,10 +75,10 @@ class TGSDatasetPreprocessor:
                                                        class_mode=None,
                                                        seed=self.seed)
         
-        self.filenames = x_iter.filenames
+        self.filenames = list(map(lambda x: x.split("/")[1], x_iter.filenames))
         file_classes = [np.squeeze(y_masks_iter.next())[0][0] for l in self.filenames]
-        return StratifiedKFold(n_splits=num_of_folds, shuffle=True, random_state=self.seed).split(self.filenames, file_classes)
-    
+        return pd.DataFrame(data= {'file': self.filenames, 'class': file_classes})
+       
     def coverage_class(self, image):
         """
         Coverage class used for stratified k-fold cross validation
@@ -92,12 +86,3 @@ class TGSDatasetPreprocessor:
         mask = np.where(image > 127, 1, 0)
         coverage = int(np.sum(mask) / (image.shape[0]*image.shape[1]) * 10)
         return coverage
-
-
-
-
-        
-
-    
-    
-    
