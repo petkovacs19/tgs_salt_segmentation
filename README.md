@@ -8,6 +8,20 @@ This is a project containing source code to the [TGS](https://www.kaggle.com/c/t
 
 To run training on multiple GPUs, first follow the guides to install [Horovod](https://github.com/uber/horovod). Horovod allows you to run training in a distributed ring-allreduce fashion. [Here](https://www.oreilly.com/ideas/distributed-tensorflow) is a short summary, about ring-allreduce and other distributed architectures.
 
+
+### Stratified k-fold cross validation
+
+The script below will split the dataset into k groups, and create symlinks in the 'folds' folder.
+Stratification by coverage is used to ensure each group has a good representation of the whole dataset.
+
+To experiment with other qualities to stratify by, you can extend the TGSDatasetPreprocessor class. Stratified k-fold cross validation helps to better estimate the performance of the trained model on the unseen test set.
+
+```
+python tgs_preprocess.py
+```
+
+Further experiments: Coverage class may not be the best quality to stratify by and create a good representation of the overall dataset. Any other features we can explore?
+
 ### Run in distributed mode
 
 Horovod uses [MPI](https://www.open-mpi.org/) - Message Passing Interface under the hood, to communicate between GPUs. A basic intro can be found [here](https://github.com/uber/horovod/blob/master/docs/concepts.md).
