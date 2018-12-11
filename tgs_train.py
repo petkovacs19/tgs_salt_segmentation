@@ -76,7 +76,7 @@ def main(args):
         val_data_generator = dataset.get_val_data_generator(input_size=input_shape, mask_size=mask_shape)
     
         #h5 model
-        best_model_file = 'weights/{}_fold_{}_best.h5'.format(args.model, fold_index)
+        best_model_file = 'weights/{}/fold_{}_best.h5'.format(args.model, fold_index)
         best_model = ModelCheckpointMGPU(model, filepath=best_model_file, monitor='val_loss',
                                          verbose=1,
                                          mode='min',
@@ -152,5 +152,5 @@ if __name__== "__main__":
     parser.add_argument('--target_size', type=int, default=224, help='Target size for images to scale to')
     args = parser.parse_args()
     if not os.path.exists('weights'):
-        os.makedirs('weights')
+        os.makedirs('weights/{}'.format(args.model))
     main(args)
