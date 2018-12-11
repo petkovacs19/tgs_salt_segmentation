@@ -54,6 +54,14 @@ Submission file will be saved in the submission folder in a 'submission_weightFi
 python tgs_predict.py
 ```
 
+To generate a weighted average prediction of folds, run:
+
+```
+python tgs_predict.py --use_folds=True
+```
+
+This picks up all the weights from the 'weights/model_name/' folder and generate an avaraged prediction.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
