@@ -11,7 +11,8 @@ from keras.optimizers import SGD
 from keras.callbacks import LearningRateScheduler, ModelCheckpoint
 from models import losses
 from models import metrics
-
+from keras.models import load_model
+import gc
 
 class ModelCheckpointMGPU(ModelCheckpoint):
     def __init__(self, original_model, filepath, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=1):
@@ -37,24 +38,6 @@ def main(args):
         if os.path.exists(args.checkpoint_format.format(epoch=try_epoch)):
             resume_from_epoch = try_epoch
             break
-
-    
-    #Create model
-    model = make_model(args.model, (args.target_size, args.target_size, 3), 2)
-    
-    #Resume from epoch
-    if args.resume_from_epoch > 0:
-        raise ValueError('Not implemented yet')
-    else:
-        size = hvd.size() if args.hvd else 1
-        opt = SGD(lr=args.learning_rate * size, momentum=0.9, nesterov=True)
-        #Wrap optimizer in distributed horovod wrapper
-        if args.hvd:
-            opt = hvd.DistributedOptimizer(opt)
-
-        model.compile(loss=losses.c_binary_crossentropy,
-                       optimizer=opt,
-                       metrics=[metrics.c_binary_accuracy]) #hard_dice_coef_ch1, hard_dice_coef])
         
     #verbose mode
     if args.hvd and hvd.rank()==0:
@@ -74,7 +57,22 @@ def main(args):
         input_shape = mask_shape = (args.target_size, args.target_size)
         train_data_generator = dataset.get_train_data_generator(input_size=input_shape, mask_size=mask_shape)
         val_data_generator = dataset.get_val_data_generator(input_size=input_shape, mask_size=mask_shape)
+
+        
     
+        #Create model
+        model = make_model(args.model, (args.target_size, args.target_size, 3), 2)
+
+
+        size = hvd.size() if args.hvd else 1
+        opt = SGD(lr=args.learning_rate * size, momentum=0.9, nesterov=True)
+        #Wrap optimizer in distributed horovod wrapper
+        if args.hvd:
+            opt = hvd.DistributedOptimizer(opt)
+        model.compile(loss=losses.c_binary_crossentropy,
+                      optimizer=opt,
+                      metrics=[metrics.c_binary_accuracy])
+
         #h5 model
         best_model_file = 'weights/{}/fold_{}_best.h5'.format(args.model, fold_index)
         best_model = ModelCheckpointMGPU(model, filepath=best_model_file, monitor='val_loss',
@@ -114,9 +112,8 @@ def main(args):
 
         train_step_size = dataset.train_step_size // hvd.size() if args.hvd else dataset.train_step_size
         val_step_size = dataset.val_step_size // hvd.size() if args.hvd else dataset.val_step_size
-        print(train_step_size)
-        print(val_step_size)
-        model.fit_generator(train_data_generator,
+
+        history = model.fit_generator(train_data_generator,
                             steps_per_epoch=train_step_size,
                             callbacks=callbacks,
                             epochs=args.epochs,
@@ -125,6 +122,33 @@ def main(args):
                             initial_epoch=resume_from_epoch,
                             validation_data=val_data_generator,
                             validation_steps=val_step_size)
+        K.clear_session()
+        gc.collect()
+        model_with_lovasz = make_model(args.model, (args.target_size, args.target_size, 3), 2)
+        model_with_lovasz.load_weights(best_model_file)
+
+        
+        #Create optimizer
+        size = hvd.size() if args.hvd else 1
+        opt = SGD(lr=args.learning_rate * size, momentum=0.9, nesterov=True)
+        #Wrap optimizer in distributed horovod wrapper
+        if args.hvd:
+            opt = hvd.DistributedOptimizer(opt)
+        model_with_lovasz.compile(loss=losses.c_lovasz_loss,
+                                  optimizer=opt,
+                                  metrics=[metrics.c_binary_accuracy])
+
+        
+        model_with_lovasz.fit_generator(train_data_generator,
+                            steps_per_epoch=train_step_size,
+                            callbacks=callbacks,
+                            epochs=args.epochs,
+                            verbose=verbose,
+                            workers=4,
+                            initial_epoch=resume_from_epoch,
+                            validation_data=val_data_generator,
+                            validation_steps=val_step_size)   
+        
 
         # Evaluate the model on the validation data set.
         if args.hvd:
@@ -141,7 +165,7 @@ if __name__== "__main__":
     parser.add_argument('--model', type=str, help='Name of backbone architecture', default="resnet34")
     parser.add_argument('--log_dir', type=str, help='Directory to save logs', default='./logs')
     parser.add_argument('--verbose', type=int, help='Verbose mode', default=1)
-    parser.add_argument('--epochs', type=int, help='Number of epochs to run the training for', default=90)
+    parser.add_argument('--epochs', type=int, help='Number of epochs to run the training for', default=150)
     parser.add_argument('--batch_size', type=int, help='Data batch size', default=32)
     parser.add_argument('--seed', type=int, help='Seed value for data generator', default=1)
     parser.add_argument('--data_path', type=str, help='Path to data folds', default='folds')
