@@ -71,7 +71,7 @@ def main(args):
             opt = hvd.DistributedOptimizer(opt)
         model.compile(loss=losses.c_binary_crossentropy,
                       optimizer=opt,
-                      metrics=[metrics.c_binary_accuracy])
+                      metrics=[metrics.c_binary_accuracy, metrics.c_iou])
 
         #h5 model
         best_model_file = 'weights/{}/fold_{}_best.h5'.format(args.model, fold_index)
@@ -136,7 +136,7 @@ def main(args):
             opt = hvd.DistributedOptimizer(opt)
         model_with_lovasz.compile(loss=losses.c_lovasz_loss,
                                   optimizer=opt,
-                                  metrics=[metrics.c_binary_accuracy])
+                                  metrics=[metrics.c_binary_accuracy, metrics.c_iou])
 
         
         model_with_lovasz.fit_generator(train_data_generator,
