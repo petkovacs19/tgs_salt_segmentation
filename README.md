@@ -23,23 +23,22 @@ python tgs_preprocess.py
 Further experiments: Coverage class may not be the best quality to stratify by and create a good representation of the overall dataset. Any other features we can explore?
 
 ### Run in distributed mode
+(!Under construction)
 
 Horovod uses [MPI](https://www.open-mpi.org/) - Message Passing Interface under the hood, to communicate between GPUs. A basic intro can be found [here](https://github.com/uber/horovod/blob/master/docs/concepts.md).
 
 ```
-mpirun -np 3 -bind-to none -map-by slot -x NCCL_DEBUG=INFO -x LD_LIBRARY_PATH -x PATH -mca pml ob1 -mca btl ^openib /home/pkovacs/anaconda3/envs/exp/bin/python tsg.py --hvd=True --train_path=/home/pkovacs/tsg/data/train --val_path=/home/pkovacs/tsg/data/val --model=resnet34 --batch_size=16 --epochs=90
+mpirun -np 3 -bind-to none -map-by slot -x NCCL_DEBUG=INFO -x LD_LIBRARY_PATH -x PATH -mca pml ob1 -mca btl ^openib /home/pkovacs/anaconda3/envs/exp/bin/python tsg_train_ring.py --hvd=True --data_path=folds/fold_0 --model=resnet34 --batch_size=16 --epochs=90
 ```
 
 or alternatively run the bash script below:
 (set the path of your python env in the script file)
 
 ```
-./train_multi_gpu.sh {number_of_gpus}
+./train_multi_gpu_ring.sh {number_of_gpus}
 ```
 
-### Run in single GPU mode
-
---hvd arg is false by default, so to run in single GPU way, just remove --hvd=True 
+### Run in default mode
 
 ```
 python tgs_train.py --model=resnet34 --batch_size=16 --epochs=90
