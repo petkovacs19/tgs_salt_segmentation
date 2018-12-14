@@ -49,7 +49,7 @@ def main(args):
             break
     if hvd.rank()==0:
         print("Last model saved: {}".format(best_model_file.format(epoch=resume_from_epoch)))
-        
+    resume_from_epoch = hvd.broadcast(resume_from_epoch, 0, name='resume_from_epoch')
     #verbose mode for one node
     if hvd.rank()==0:
         verbose = 1
@@ -59,7 +59,8 @@ def main(args):
     #Create dataset
     
     dataset = TGSDataset(data_path=args.data_path, batch_size=args.batch_size)
-    input_shape = mask_shape = (args.target_size, args.target_size)
+    input_shape = (args.target_size, args.target_size)
+    mask_shape = (101, 101)
     train_data_generator = dataset.get_train_data_generator(input_size=input_shape, mask_size=mask_shape, seed=np.random.rand())
     val_data_generator = dataset.get_val_data_generator(input_size=input_shape, mask_size=mask_shape, seed=np.random.rand())
     train_step_size = dataset.train_step_size // hvd.size()

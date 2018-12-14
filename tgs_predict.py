@@ -15,7 +15,7 @@ import os
 import argparse
 from skimage.transform import resize
 from skimage import img_as_bool
-
+from keras.models import load_model
 
 # Default RLenc
 def rle_encoding(img, order='F', format=True):
@@ -54,8 +54,8 @@ def rle_encoding(img, order='F', format=True):
         return z[:-1]
     else:
         return runs
-
-def create_submission_file(predictions, filenames, name):
+    
+def create_submission_file(predictions, filenames):
     """
     predictions - list of preditictions on test set
     filenames - list of test files
@@ -64,14 +64,11 @@ def create_submission_file(predictions, filenames, name):
     print("Generating rle encoding")
     lines = []
     for index,prediction in enumerate(tqdm(predictions)):
-        prediction = np.round(prediction[...,1])
-        bool_mask = np.where(prediction==1, True, False)
-        bool_mask_res = img_as_bool(resize(bool_mask, (101, 101)))
-        prediction = np.where(bool_mask_res == True, 1, 0)
-        rle = rle_encoding(prediction)
+        prediction = np.array(prediction[...,1])
+        rle = rle_encoding(np.round(prediction))
         lines.append("{},{}".format(filenames[index][5:][:-4], rle))
     submission = "id,rle_mask\n" + "\n".join(lines)
-    file_path = 'submissions/submission_{}_{}.csv'.format(name,datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S"))
+    file_path = 'submissions/{}/submission_{}_{}.csv'.format(args.model_name,args.weight_path[0].split("/")[-1],datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S"))
     with open(file_path, "w") as f:
         f.write(submission)
     return file_path
@@ -82,11 +79,12 @@ def generate_predictions(file_name, model_name, target_size, test_iter):
     """
     weight = os.path.join('{}.h5'.format(file_name))
     model = make_model(model_name, (target_size, target_size, 3), 2)
-    model.load_weights(weight)
+    model.load_weights(weight, by_name=True)
+    #model = load_model(weight)
     predictions = model.predict_generator(test_iter, steps = len(test_iter.filenames), verbose=1)
     return predictions
 
-def generate_submission_file(file_name, model_name, target_size, test_path, use_folds):
+def generate_submission_file(weight_path, model_name, target_size, test_path, use_folds):
     """
     Generates rle encoded submission files of model - model_name
     use_folds - if True - a weighted average prediction of folds is used from weight files in folder - 'weights/model_name'
@@ -95,24 +93,23 @@ def generate_submission_file(file_name, model_name, target_size, test_path, use_
     test_gen = image.ImageDataGenerator(samplewise_center=True,samplewise_std_normalization=True)
     test_iter = test_gen.flow_from_directory(test_path, batch_size=1, target_size=(target_size, target_size),
                                              class_mode=None,seed=1, shuffle = False)
-    filenames = test_iter.filenames
     predictions = np.zeros((18000, 224, 224, 2))
     if use_folds:
         for _,_,files in os.walk('weights/{}'.format(model_name)):
             weight_files = files
     else:
-        weight_files = [file_name]
+        weight_files = weight_path
         
     for weight_file in weight_files:
         print("Generating prediction for model {} and weight {}".format(model_name, weight_file))
-        predictions += generate_predictions(file_name, model_name, target_size, test_iter) / len(weight_files)     
+        predictions += generate_predictions(weight_file, model_name, target_size, test_iter) / len(weight_files)     
     
-    return create_submission_file(predictions, filenames, file_name)
+    return create_submission_file(predictions, test_iter.filenames)
    
         
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = 'This is to generate submission file for the predictions')
-    parser.add_argument('--file_name', nargs='+', help='path to the best model', default="resnet34_best")
+    parser.add_argument('--weight_path', nargs='+', help='path to the best model', default="resnet34_best")
     parser.add_argument('--model_name', type=str, help='model to load', default="resnet34")
     parser.add_argument('--use_folds', type=bool, help='use average prediction of cross-validation folds', default=False)
     parser.add_argument('--target_size', type=int, help='target size', default=224)
@@ -121,10 +118,10 @@ if __name__ == "__main__":
     print("==================================================")
     print("Generating predictions for test set using")
     print("Model: {}".format(args.model_name))
-    print("Weights: {}".format(args.file_name))
+    print("Weights: {}".format(args.weight_path))
     print("Using data: {}".format(args.test_path))
     print("==================================================")
     if not os.path.exists('submissions'):
-        os.makedirs('submissions')
-    submission_file_path = generate_submission_file(args.file_name, args.model_name, args.target_size, args.test_path, args.use_folds)
+        os.makedirs('submissions/{}'.format(args.model_name))
+    submission_file_path = generate_submission_file(args.weight_path, args.model_name, args.target_size, args.test_path, args.use_folds)
     print("Submission saved at {}".format(submission_file_path))

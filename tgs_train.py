@@ -25,7 +25,8 @@ def main(args):
         
         #Create dataset
         dataset = TGSDataset(data_path="{}/fold_{}".format(args.data_path, fold_index), batch_size=args.batch_size)
-        input_shape = mask_shape = (args.target_size, args.target_size)
+        input_shape = (args.target_size, args.target_size)
+        mask_shape = (101, 101)
         train_data_generator = dataset.get_train_data_generator(input_size=input_shape, mask_size=mask_shape, seed=args.seed)
         val_data_generator = dataset.get_val_data_generator(input_size=input_shape, mask_size=mask_shape, seed=args.seed)
 

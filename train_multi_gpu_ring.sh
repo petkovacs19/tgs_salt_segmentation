@@ -8,7 +8,7 @@ fi
 
 echo "Starting distributed training with horovod"
 
-epochs=10
+epochs=100
 batch_size=32
 python_env=/home/pkovacs/anaconda3/envs/exp/bin/python
 data_path=folds

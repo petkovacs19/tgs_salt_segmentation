@@ -135,9 +135,8 @@ def resnet34_fpn(input_shape, channels=2, activation="softmax"):
         )
     x = conv_bn_relu(x, 256, 3, (1, 1), name="aggregation")
     x = decoder_block_no_bn(x, 128, conv1, 'up4')
-    x = UpSampling2D()(x)
     x = conv_relu(x, 64, 3, (1, 1), name="up5_conv1")
-    x = conv_relu(x, 64, 3, (1, 1), name="up5_conv2")
+    x = conv_relu(x, 64, 12, (1, 1), name="up5_conv2", padding='valid')
     if activation == 'softmax':
         name = 'mask_softmax'
         x = Conv2D(channels, (1, 1), activation=activation, name=name)(x)
