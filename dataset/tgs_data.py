@@ -4,13 +4,12 @@ import numpy as np
 import os
 
 class TGSDataset:
-    def __init__(self, data_path, batch_size=16, seed=1, kfold=1):
+    def __init__(self, data_path, batch_size=16, kfold=1):
         self.name = 'TGSDataset'
         self.data_path = data_path
         self.batch_size = batch_size
-        self.seed = seed
         
-    def get_train_data_generator(self, input_size, mask_size):
+    def get_train_data_generator(self, input_size, mask_size, seed=1):
         """
         input_size - tuple(int,int) width,height of input to the model
         mask_size - tuple(int,int) expected width,height of output mask from the model
@@ -18,17 +17,17 @@ class TGSDataset:
         return self.__get_data_generator(input_size, mask_size)
     
         
-    def get_val_data_generator(self, input_size, mask_size):
+    def get_val_data_generator(self, input_size, mask_size, seed=1):
         return self.__get_data_generator(input_size, mask_size, True)
         
-    def __get_data_generator(self, input_size, mask_size, validation=False):
+    def __get_data_generator(self, input_size, mask_size, validation=False, seed=1):
         tpe = 'val' if validation else 'train'
         x_gen = image.ImageDataGenerator(samplewise_center=True, samplewise_std_normalization=True)
         x_iter = x_gen.flow_from_directory('{}/{}/images'.format(self.data_path, tpe),
                                            batch_size=self.batch_size,
                                            target_size=input_size,
                                            class_mode=None,
-                                           seed=self.seed)
+                                           seed=seed)
         
         y_masks_gen = image.ImageDataGenerator(preprocessing_function=self.normalize)
         y_masks_iter = y_masks_gen.flow_from_directory('{}/{}/masks'.format(self.data_path, tpe),
@@ -36,7 +35,7 @@ class TGSDataset:
                                                        target_size=mask_size,
                                                        color_mode='grayscale',
                                                        class_mode=None,
-                                                       seed=self.seed)
+                                                       seed=seed)
         if validation:
             self.val_step_size=len(x_iter)
         else:

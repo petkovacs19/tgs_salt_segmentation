@@ -24,10 +24,10 @@ def main(args):
         
         
         #Create dataset
-        dataset = TGSDataset(data_path="{}/fold_{}".format(args.data_path, fold_index), batch_size=args.batch_size, seed=args.seed)
+        dataset = TGSDataset(data_path="{}/fold_{}".format(args.data_path, fold_index), batch_size=args.batch_size)
         input_shape = mask_shape = (args.target_size, args.target_size)
-        train_data_generator = dataset.get_train_data_generator(input_size=input_shape, mask_size=mask_shape)
-        val_data_generator = dataset.get_val_data_generator(input_size=input_shape, mask_size=mask_shape)
+        train_data_generator = dataset.get_train_data_generator(input_size=input_shape, mask_size=mask_shape, seed=args.seed)
+        val_data_generator = dataset.get_val_data_generator(input_size=input_shape, mask_size=mask_shape, seed=args.seed)
 
         #Find best saved model
         best_model_file = 'weights/{}/fold_{}_{epoch}_best.h5'.format(args.model, fold_index, epoch='{epoch}')
@@ -40,6 +40,9 @@ def main(args):
         #Create model
         model = make_model(args.model, (args.target_size, args.target_size, 3), 2)
 
+        if resume_from_epoch > 0:
+            print("Resuming from epoch {}".format(resume_from_epoch))
+            model.load_weights(best_model_file.format(epoch=resume_from_epoch))
         #Optimizer
         opt = SGD(lr=args.learning_rate, momentum=0.9, nesterov=True)
 
@@ -108,7 +111,7 @@ if __name__== "__main__":
     parser.add_argument('--model', type=str, help='Name of backbone architecture', default="resnet34")
     parser.add_argument('--log_dir', type=str, help='Directory to save logs', default='./logs')
     parser.add_argument('--verbose', type=int, help='Verbose mode', default=1)
-    parser.add_argument('--epochs', type=int, help='Number of epochs to run the training for', default=150)
+    parser.add_argument('--epochs', type=int, help='Number of epochs to run the training for', default=10)
     parser.add_argument('--batch_size', type=int, help='Data batch size', default=32)
     parser.add_argument('--seed', type=int, help='Seed value for data generator', default=1)
     parser.add_argument('--data_path', type=str, help='Path to data folds', default='folds')

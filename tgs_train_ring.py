@@ -3,6 +3,7 @@ import horovod.keras as hvd
 import tensorflow as tf
 import keras
 import os
+import numpy as np
 from keras import backend as K
 from models.model_factory import make_model
 from dataset.tgs_data import TGSDataset
@@ -33,6 +34,12 @@ def main(args):
     K.set_session(tf.Session(config=config))
     
     fold = args.data_path.split("fold_")[1]
+    if hvd.rank()==0:
+        print("================================")
+        if args.use_lovasz:
+            print("Fine tuning with ")
+        print("Fold {}".format(fold))
+        
     #Find best saved model
     best_model_file = 'weights/{}/fold_{}_{epoch}_best.h5'.format(args.model, fold, epoch='{epoch}')
     resume_from_epoch = 0
@@ -40,6 +47,8 @@ def main(args):
         if os.path.exists(best_model_file.format(epoch=try_epoch)):
             resume_from_epoch = try_epoch
             break
+    if hvd.rank()==0:
+        print("Last model saved: {}".format(best_model_file.format(epoch=resume_from_epoch)))
         
     #verbose mode for one node
     if hvd.rank()==0:
@@ -48,15 +57,20 @@ def main(args):
         verbose = 0
    
     #Create dataset
-    dataset = TGSDataset(data_path=args.data_path, batch_size=args.batch_size, seed=args.seed)
+    
+    dataset = TGSDataset(data_path=args.data_path, batch_size=args.batch_size)
     input_shape = mask_shape = (args.target_size, args.target_size)
-    train_data_generator = dataset.get_train_data_generator(input_size=input_shape, mask_size=mask_shape)
-    val_data_generator = dataset.get_val_data_generator(input_size=input_shape, mask_size=mask_shape)
-
+    train_data_generator = dataset.get_train_data_generator(input_size=input_shape, mask_size=mask_shape, seed=np.random.rand())
+    val_data_generator = dataset.get_val_data_generator(input_size=input_shape, mask_size=mask_shape, seed=np.random.rand())
+    train_step_size = dataset.train_step_size // hvd.size()
+    val_step_size = dataset.val_step_size // hvd.size()
     #Create model
     model = make_model(args.model, (args.target_size, args.target_size, 3), 2)
 
-
+    #load weights
+    if resume_from_epoch > 0:
+        model.load_weights(best_model_file.format(epoch=resume_from_epoch))
+        
     size = hvd.size()
     opt = hvd.DistributedOptimizer(SGD(lr=args.learning_rate * size, momentum=0.9, nesterov=True))
 
@@ -68,7 +82,6 @@ def main(args):
                   metrics=[metrics.c_binary_accuracy, metrics.c_iou])
 
     #h5 model
-    best_model_file = 'weights/{}/fold_{}_best.h5'.format(args.model, fold)
     best_model = ModelCheckpointMGPU(model, filepath=best_model_file, monitor='val_loss',
                                      verbose=1,
                                      mode='min',
@@ -122,7 +135,6 @@ if __name__== "__main__":
     parser.add_argument('--verbose', type=int, help='Verbose mode', default=1)
     parser.add_argument('--epochs', type=int, help='Number of epochs to run the training for', default=150)
     parser.add_argument('--batch_size', type=int, help='Data batch size', default=32)
-    parser.add_argument('--seed', type=int, help='Seed value for data generator', default=1)
     parser.add_argument('--data_path', type=str, help='Path to data folds', default='folds')
     parser.add_argument('--resume_from_epoch', type=int, help='Epoch to resume from', default=0)
     parser.add_argument('--learning_rate', type=float, help='Learning rate', default=0.0005)

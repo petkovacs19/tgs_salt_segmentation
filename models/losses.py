@@ -8,7 +8,7 @@ def c_binary_crossentropy(y_true, y_pred):
     return K.mean(K.binary_crossentropy(y_true[...,0], y_pred[...,1]))
 
 def c_lovasz_loss(y_true, y_pred):
-    return lovasz_softmax(K.expand_dims(y_pred[...,1], -1), y_true[...,0], classes='present', per_image=False, ignore=None, order='BHWC')
+    return lovasz_softmax(y_pred, y_true[...,0], classes='all', per_image=True, ignore=None, order='BHWC')
 
 # source: https://github.com/bermanmaxim/LovaszSoftmax/blob/master/tensorflow/lovasz_losses_tf.py
 

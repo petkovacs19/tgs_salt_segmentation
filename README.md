@@ -20,7 +20,7 @@ To experiment with other qualities to stratify by, you can extend the TGSDataset
 python tgs_preprocess.py
 ```
 
-Further experiments: Coverage class may not be the best quality to stratify by and create a good representation of the overall dataset. Any other features we can explore?
+Further experiments: Coverage class may not be the best quality to stratify by and create a good representation of the overall dataset. It may ignore other important features.
 
 ### Run in distributed mode
 (!Under construction)
@@ -38,10 +38,10 @@ or alternatively run the bash script below:
 ./train_multi_gpu_ring.sh {number_of_gpus}
 ```
 
-### Run in default mode
+### Run in single-gpu mode
 
 ```
-python tgs_train.py --model=resnet34 --batch_size=16 --epochs=90
+python tgs_train.py
 ```
 
 
@@ -50,7 +50,7 @@ python tgs_train.py --model=resnet34 --batch_size=16 --epochs=90
 Submission file will be saved in the submission folder in a 'submission_weightFileName_dateTime.csv' file
 
 ```
-python tgs_predict.py
+python tgs_predict.py --file_name=path_to_the_model
 ```
 
 To generate a weighted average prediction of folds, run:
