@@ -137,7 +137,7 @@ if __name__== "__main__":
     parser.add_argument('--batch_size', type=int, help='Data batch size', default=32)
     parser.add_argument('--data_path', type=str, help='Path to data folds', default='folds')
     parser.add_argument('--resume_from_epoch', type=int, help='Epoch to resume from', default=0)
-    parser.add_argument('--learning_rate', type=float, help='Learning rate', default=0.0005)
+    parser.add_argument('--learning_rate', type=float, help='Learning rate', default=0.01)
     parser.add_argument('--checkpoint-format', default='./checkpoint-{epoch}.h5', help='checkpoint file format')
     parser.add_argument('--warmup_epochs', type=float, default=5, help='number of warmup epochs')
     parser.add_argument('--target_size', type=int, default=224, help='Target size for images to scale to')
