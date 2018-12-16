@@ -64,7 +64,7 @@ def create_submission_file(predictions, filenames):
     print("Generating rle encoding")
     lines = []
     for index,prediction in enumerate(tqdm(predictions)):
-        prediction = np.array(prediction[...,1])
+        prediction = np.array(prediction[...,0])
         rle = rle_encoding(np.round(prediction))
         lines.append("{},{}".format(filenames[index][5:][:-4], rle))
     submission = "id,rle_mask\n" + "\n".join(lines)
@@ -78,7 +78,7 @@ def generate_predictions(file_name, model_name, target_size, test_iter):
     Using model - model_name and saved weights in file_name, generates predictions for files in test_path
     """
     weight = os.path.join('{}.h5'.format(file_name))
-    model = make_model(model_name, (target_size, target_size, 3), 2)
+    model = make_model(model_name, (target_size, target_size, 3), 1, "sigmoid")
     model.load_weights(weight, by_name=True)
     #model = load_model(weight)
     predictions = model.predict_generator(test_iter, steps = len(test_iter.filenames), verbose=1)
@@ -93,7 +93,7 @@ def generate_submission_file(weight_path, model_name, target_size, test_path, us
     test_gen = image.ImageDataGenerator(samplewise_center=True,samplewise_std_normalization=True)
     test_iter = test_gen.flow_from_directory(test_path, batch_size=1, target_size=(target_size, target_size),
                                              class_mode=None,seed=1, shuffle = False)
-    predictions = np.zeros((18000, 224, 224, 2))
+    predictions = np.zeros((18000, 101, 101, 1))
     if use_folds:
         for _,_,files in os.walk('weights/{}'.format(model_name)):
             weight_files = files
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     parser.add_argument('--weight_path', nargs='+', help='path to the best model', default="resnet34_best")
     parser.add_argument('--model_name', type=str, help='model to load', default="resnet34")
     parser.add_argument('--use_folds', type=bool, help='use average prediction of cross-validation folds', default=False)
-    parser.add_argument('--target_size', type=int, help='target size', default=224)
+    parser.add_argument('--target_size', type=int, help='target size', default=101)
     parser.add_argument('--test_path', type=str, help='Path to the test data', default='/home/pkovacs/tsg/data/test/images')
     args = parser.parse_args()
     print("==================================================")

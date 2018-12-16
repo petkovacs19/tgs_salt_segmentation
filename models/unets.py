@@ -1,6 +1,6 @@
 from keras import Model, Input
 from keras.applications import DenseNet169
-from keras.layers import UpSampling2D, Conv2D, BatchNormalization, Activation, concatenate, Add, Dense, multiply, AveragePooling2D, Lambda
+from keras.layers import UpSampling2D, Conv2D, BatchNormalization, Activation, concatenate, Add, Dense, multiply, AveragePooling2D, Lambda, MaxPooling2D, Dropout, Conv2DTranspose
 from keras.utils import get_file
 import keras.backend as K
 from models.resnets import ResNet34
@@ -116,7 +116,7 @@ def prediction_fpn_block(x, name, upsample=None):
     return x
 
 
-def resnet34_fpn(input_shape, channels=2, activation="softmax"):
+def resnet34_fpn(input_shape, channels=1):
     img_input = Input(input_shape)
     resnet_base = ResNet34(img_input,include_top=False)
     conv1 = resnet_base.get_layer("conv1_relu").output  # First activation
@@ -137,13 +137,60 @@ def resnet34_fpn(input_shape, channels=2, activation="softmax"):
     x = decoder_block_no_bn(x, 128, conv1, 'up4')
     x = conv_relu(x, 64, 3, (1, 1), name="up5_conv1")
     x = conv_relu(x, 64, 12, (1, 1), name="up5_conv2", padding='valid')
-    if activation == 'softmax':
-        name = 'mask_softmax'
-        x = Conv2D(channels, (1, 1), activation=activation, name=name)(x)
-    else:
-        x = Conv2D(channels, (1, 1), activation=activation, name="mask")(x)
+    x = Conv2D(channels, (1, 1), activation=None)(x)
+    output_layer =  Activation('sigmoid')(x)
     return Model(img_input, x)
 
 
-if __name__ == '__main__':
-    resnet34_fpn((101, 101, 3)).summary()
+def BatchActivate(x):
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    return x
+
+def convolution_block(x, filters, size, strides=(1,1), padding='same', activation=True):
+    x = Conv2D(filters, size, strides=strides, padding=padding)(x)
+    if activation == True:
+        x = BatchActivate(x)
+    return x
+
+def residual_block(blockInput, num_filters=16, batch_activate = False):
+    x = BatchActivate(blockInput)
+    x = convolution_block(x, num_filters, (3,3) )
+    x = convolution_block(x, num_filters, (3,3), activation=False)
+    x = Add()([x, blockInput])
+    if batch_activate:
+        x = BatchActivate(x)
+    return x
+
+def build_model(input_shape, start_channels=16, depth=4, kernel=7,  drop_out = 0.5):
+    input_layer = Input(input_shape)
+    conv = input_layer
+    conv_layers = []
+    for i in range(depth): 
+        conv = Conv2D(start_channels * (2**i), (kernel, kernel), activation=None, padding="valid")(conv)
+        conv = residual_block(conv,start_channels * (2**i))
+        conv = residual_block(conv,start_channels * (2**i), True)
+        conv_layers.append(conv)
+#         conv = MaxPooling2D((2, 2))(conv)
+        conv = Dropout(drop_out)(conv)
+
+    # Middle
+    convm = Conv2D(start_channels * (2**depth), (kernel, kernel), activation=None, padding="valid")(conv)
+    convm = residual_block(convm,start_channels * (2**depth))
+    convm = residual_block(convm,start_channels * (2**depth), True)
+    uconv = convm
+    
+    for i in reversed(range(depth)):
+        deconv = Conv2DTranspose(start_channels * (2**i), (kernel, kernel), strides=(1, 1), padding="valid")(uconv)
+        uconv = concatenate([deconv, conv_layers[i]])
+        uconv = Dropout(drop_out)(uconv)
+
+        uconv = Conv2D(start_channels * (2**i), (kernel, kernel), activation=None, padding="same")(uconv)
+        uconv = residual_block(uconv,start_channels * (2**i))
+        uconv = residual_block(uconv,start_channels * (2**i), True)
+    
+    
+    output_layer_noActi = Conv2DTranspose(1, (kernel,kernel), padding="valid", activation=None)(uconv)
+    output_layer =  Activation('sigmoid')(output_layer_noActi)
+    
+    return Model(input_layer, output_layer)

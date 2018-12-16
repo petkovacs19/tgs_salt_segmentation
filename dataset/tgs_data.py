@@ -14,11 +14,11 @@ class TGSDataset:
         input_size - tuple(int,int) width,height of input to the model
         mask_size - tuple(int,int) expected width,height of output mask from the model
         """
-        return self.__get_data_generator(input_size, mask_size)
+        return self.__get_data_generator(input_size, mask_size, False, seed)
     
         
     def get_val_data_generator(self, input_size, mask_size, seed=1):
-        return self.__get_data_generator(input_size, mask_size, True)
+        return self.__get_data_generator(input_size, mask_size, True, seed)
         
     def __get_data_generator(self, input_size, mask_size, validation=False, seed=1):
         tpe = 'val' if validation else 'train'
